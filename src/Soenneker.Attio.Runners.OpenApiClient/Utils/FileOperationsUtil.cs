@@ -109,14 +109,14 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         return filePath;
     }
 
-    private static async ValueTask MergeOpenApiDocuments(IReadOnlyList<string> sourceFilePaths, string targetFilePath,
+    private async ValueTask MergeOpenApiDocuments(IReadOnlyList<string> sourceFilePaths, string targetFilePath,
         CancellationToken cancellationToken)
     {
         JsonObject? mergedDocument = null;
 
         foreach (string sourceFilePath in sourceFilePaths)
         {
-            string json = await File.ReadAllTextAsync(sourceFilePath, cancellationToken);
+            string json = await _fileUtil.Read(sourceFilePath, log: false, cancellationToken);
             var sourceDocument = JsonNode.Parse(json) as JsonObject ??
                                  throw new JsonException($"OpenAPI document '{sourceFilePath}' must have a JSON object at its root.");
 
@@ -135,7 +135,8 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         if (mergedDocument == null)
             throw new InvalidOperationException("At least one OpenAPI document is required for merging.");
 
-        await File.WriteAllTextAsync(targetFilePath, mergedDocument.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
+        await _fileUtil.WriteAtomically(targetFilePath, mergedDocument.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), log: false,
+            cancellationToken).NoSync();
     }
 
     private static void MergeComponents(JsonObject targetDocument, JsonObject sourceDocument, string sourceFilePath)
